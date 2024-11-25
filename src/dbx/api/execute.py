@@ -20,12 +20,13 @@ class ExecutionController:
         client: RichExecutionContextClient,
         no_package: bool,
         core_package: Optional[Library],
+        extra_package: Optional[Library],
         upload_via_context: bool,
         requirements_file: Optional[Path],
         task: ExecuteTask,
         pip_install_extras: Optional[str],
     ):
-        self.additional_libraries = AdditionalLibrariesProvider(no_package=no_package, core_package=core_package)
+        self.additional_libraries = AdditionalLibrariesProvider(no_package=no_package, core_package=core_package, extra_package=extra_package)
         self._client = client
         self._requirements_file = requirements_file
         self._task = task
@@ -59,6 +60,10 @@ class ExecutionController:
 
         if not self.additional_libraries.no_package:
             self.install_package(self._pip_install_extras)
+
+        if self.additional_libraries.extra_package:
+            dbx_echo("Installing extra package")
+            self.install_extra_package()
 
         if self._task.task_type == TaskType.spark_python_task:
             self.preprocess_task_parameters(self._task.spark_python_task.parameters)
@@ -125,6 +130,20 @@ class ExecutionController:
 
         self._refresh_python_if_necessary()
         dbx_echo(":white_check_mark: Installing package - done")
+
+    def install_extra_package(self):
+        if not self.additional_libraries.extra_package:
+            raise FileNotFoundError("Extra Package was not found. Please check that /dist directory exists.")
+        dbx_echo("Uploading Extra Package")
+        stripped_package_path = self.additional_libraries.extra_package.whl.replace("file://", "")
+        localized_package_path = self._file_uploader.upload_and_provide_path(f"file:fuse://{stripped_package_path}")
+        dbx_echo(":white_check_mark: Uploading package - done")
+
+        with Console().status("Installing extra package on the cluster 📦", spinner="dots"):
+            self._client.install_package(localized_package_path, None)
+
+        self._refresh_python_if_necessary()
+        dbx_echo(":white_check_mark: Installing extra package - done")        
 
     def preprocess_task_parameters(self, parameters: Union[List[str], Dict[str, str]]):
         dbx_echo(f":fast_forward: Processing task parameters: {parameters}")

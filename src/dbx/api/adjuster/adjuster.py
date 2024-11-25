@@ -25,6 +25,7 @@ from dbx.utils.file_uploader import AbstractFileUploader
 class AdditionalLibrariesProvider(FlexibleModel):
     no_package: Optional[bool] = False
     core_package: Optional[Library]
+    extra_package: Optional[Library] = None
     libraries_from_requirements: Optional[List[Library]] = []
 
 

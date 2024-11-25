@@ -7,7 +7,8 @@ from dbx.api.cluster import ClusterController
 from dbx.api.config_reader import BuildProperties, ConfigReader
 from dbx.api.configure import ProjectConfigurationManager
 from dbx.api.context import RichExecutionContextClient
-from dbx.api.dependency.core_package import CorePackageManager
+# from dbx.api.dependency.core_package import CorePackageManager
+from dbx.api.dependency.package_manager import PackageManager
 from dbx.api.execute import ExecutionController
 from dbx.models.cli.execute import ExecuteParametersPayload
 from dbx.models.workflow.common.workflow_types import WorkflowType
@@ -50,6 +51,7 @@ def execute(
     requirements_file: Optional[Path] = REQUIREMENTS_FILE_OPTION,
     no_rebuild: bool = NO_REBUILD_OPTION,
     no_package: bool = NO_PACKAGE_OPTION,
+    extra_package_path: Optional[str] = typer.Option(None, "--extra-package", help="Extra package to install"),
     upload_via_context: bool = typer.Option(
         False,
         "--upload-via-context",
@@ -109,7 +111,8 @@ def execute(
     task: ExecuteTask = workflow.get_task(task_name) if task_name else workflow
 
     task.check_if_supported_in_execute()
-    core_package = CorePackageManager().core_package if not no_package else None
+    core_package = PackageManager(package_path=None).package if not no_package else None
+    extra_package = PackageManager(package_path=extra_package_path).package 
 
     if parameters:
         task.override_execute_parameters(ExecuteParametersPayload.from_json(parameters))
@@ -128,6 +131,7 @@ def execute(
         client=context_client,
         no_package=no_package,
         core_package=core_package,
+        extra_package=extra_package,
         requirements_file=requirements_file,
         task=task,
         upload_via_context=upload_via_context,
